@@ -1,6 +1,6 @@
-# Iterated Prisoner's Dilemma Simulation with Global Information Sharing
+# Iterated Prisoner's Dilemma Simulation with Meta-Cognitive Strategies
 
-A web application that simulates the iterated prisoner's dilemma, a classic game theory scenario. This app demonstrates how different strategies perform when players repeatedly face the same decision, with a special enhancement that allows strategies to observe and learn from *all* interactions between participants.
+A web application that simulates the iterated prisoner's dilemma, a classic game theory scenario. This app demonstrates how different strategies perform when players repeatedly face the same decision, with advanced features including global information sharing and meta-cognitive strategies that can analyze each other's code.
 
 ## Features
 
@@ -10,6 +10,7 @@ A web application that simulates the iterated prisoner's dilemma, a classic game
 - Implementation of various classic and modern strategies
 - Educational explanations of the prisoner's dilemma concepts
 - **Global information sharing**: Strategies can access complete tournament history
+- **Meta-cognitive strategies**: Strategies can examine each other's source code and adapt using a language model
 
 ## What Makes This Version Special
 
@@ -19,8 +20,9 @@ In traditional iterated prisoner's dilemma, strategies only know about their own
 - The complete decision history is recorded outside of the strategies
 - The entire interaction history is passed to each strategy when making decisions
 - New strategies can leverage this global information to make smarter decisions
+- **Meta-cognitive strategies can analyze the source code of opponents and use a language model to develop optimal counter-strategies**
 
-This mirrors real-world social dynamics where reputation and observing third-party interactions influence decision-making.
+This mirrors real-world social dynamics where reputation, observing third-party interactions, and reasoning about others' decision-making processes influence behavior.
 
 ## Included Strategies
 
@@ -34,6 +36,7 @@ This mirrors real-world social dynamics where reputation and observing third-par
 8. **Adaptive**: Adjusts cooperation probability based on opponent's behavior pattern
 9. **Reputation Based**: Makes decisions based on how the opponent behaves with all players
 10. **Majority Rule**: Copies what the most successful strategies do against the current opponent
+11. **Meta Strategy**: Uses a language model to analyze opponent's source code and develop optimal counter-strategies in real-time
 
 ## Game Rules
 
@@ -49,6 +52,7 @@ The prisoner's dilemma uses the following payoff matrix:
 
 - Node.js (v14 or later)
 - npm (v6 or later)
+- A local LLM installed (`llm` command available in the terminal)
 
 ### Installation
 
@@ -63,12 +67,31 @@ The prisoner's dilemma uses the following payoff matrix:
    npm install
    ```
 
-3. Start the development server:
+3. Start the development server and LLM server together:
    ```
+   npm run dev
+   ```
+   
+   Or start them separately:
+   ```
+   # Start the LLM server
+   npm run server
+   
+   # In another terminal window, start the React app
    npm start
    ```
 
 4. Open your browser and navigate to: http://localhost:3000
+
+### LLM Configuration
+
+This project uses language models using the `llm` program. Please visit its website at
+
+    https://llm.datasette.io/
+
+for details. Note that you'll need either a local model plugin or an API key to an inference provider.
+
+If you with to use LLMs another way, you'll need to modify the `server.js` file accordingly.
 
 ## Creating Your Own Strategies
 
@@ -77,6 +100,7 @@ You can create your own strategies by extending the base Strategy class. Your st
 - The complete history of all games in the tournament
 - Helper methods to analyze interactions between specific players
 - Information about the current round and opponent
+- The LLM service for advanced reasoning and analysis
 
 Example of a custom strategy:
 
@@ -93,15 +117,32 @@ export class MyCustomStrategy extends Strategy {
 }
 ```
 
-## Technology Stack
+Example of a meta-cognitive strategy:
 
-- React - Frontend framework
-- Chart.js - Data visualization
-- JavaScript ES6 - Core programming language
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+```javascript
+export class MyMetaStrategy extends Strategy {
+  constructor() {
+    super('My Meta Strategy');
+  }
+  
+  async initialize() {
+    // Fetch the source code of all strategies
+    this.strategyCode = await LLMService.getStrategiesCode();
+  }
+  
+  async analyzeOpponent(opponentName) {
+    // Use LLM to analyze opponent's strategy
+    const systemPrompt = "Analyze this strategy code";
+    const analysis = await LLMService.queryLLM(systemPrompt, this.strategyCode);
+    return analysis;
+  }
+  
+  makeDecision(roundNumber, totalRounds, opponentName, globalHistory) {
+    // Make decisions based on code analysis
+    // Return true to cooperate, false to defect
+  }
+}
+```
 
 ## Acknowledgments
 

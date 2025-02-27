@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import StrategySelector from './components/StrategySelector';
-import GameResults from './components/GameResults';
-import TournamentResults from './components/TournamentResults';
-import GameEngine from './utils/GameEngine';
-import * as Strategies from './strategies/Strategy';
+import StrategySelector from './components/StrategySelector.js';
+import GameResults from './components/GameResults.js';
+import TournamentResults from './components/TournamentResults.js';
+import GameEngine from './utils/GameEngine.js';
+import * as Strategies from './strategies/Strategy.js';
+import { MetaStrategy } from './strategies/MetaStrategy.js';
 
 const App = () => {
   // Game settings
@@ -32,6 +33,7 @@ const App = () => {
       case 'Adaptive': return new Strategies.Adaptive();
       case 'Reputation Based': return new Strategies.ReputationBased();
       case 'Majority Rule': return new Strategies.MajorityRule();
+      case 'Meta Strategy': return new MetaStrategy();
       default: return new Strategies.TitForTat();
     }
   };
@@ -60,8 +62,15 @@ const App = () => {
       new Strategies.Pavlov(),
       new Strategies.Adaptive(),
       new Strategies.ReputationBased(),
-      new Strategies.MajorityRule()
+      new Strategies.MajorityRule(),
+      new MetaStrategy()
     ];
+    
+    // Initialize any MetaStrategy instances with access to all strategies
+    const metaStrategies = strategies.filter(s => s instanceof MetaStrategy);
+    metaStrategies.forEach(strategy => {
+      strategy.initializeWithAllStrategies(strategies);
+    });
     
     const results = gameEngine.runTournament(strategies, rounds);
     setTournamentResults(results);
@@ -189,6 +198,7 @@ const App = () => {
           <li><strong>Adaptive:</strong> Adjusts cooperation probability based on opponent's behavior pattern.</li>
           <li><strong>Reputation Based:</strong> Makes decisions based on how the opponent behaves with all players, not just this strategy.</li>
           <li><strong>Majority Rule:</strong> Copies what the most successful strategies do against the current opponent.</li>
+          <li><strong>Meta Strategy:</strong> Uses a language model to analyze opponent strategy code and develop counter-strategies in real-time.</li>
         </ul>
         
         <h3>About Global Information Sharing</h3>
@@ -201,6 +211,14 @@ const App = () => {
         <p>
           The "Reputation Based" and "Majority Rule" strategies specifically take advantage of this global information
           to make more informed decisions than would be possible in a traditional prisoner's dilemma setup.
+        </p>
+        
+        <h3>Meta-Cognitive Strategies</h3>
+        <p>
+          This simulation now includes a revolutionary "Meta Strategy" that can analyze the source code of other strategies
+          using a language model. This strategy can examine how other strategies work, identify their patterns and weaknesses,
+          and develop optimal counter-strategies in real-time. This represents a new level of meta-cognition in game theory
+          simulations where agents can reason about each other's decision-making processes.
         </p>
       </div>
     </div>

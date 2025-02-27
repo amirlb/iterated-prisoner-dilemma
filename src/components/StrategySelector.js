@@ -1,5 +1,6 @@
 import React from 'react';
-import * as Strategies from '../strategies/Strategy';
+import * as Strategies from '../strategies/Strategy.js';
+import { MetaStrategy } from '../strategies/MetaStrategy.js';
 
 const StrategySelector = ({ onChange, value, id, label }) => {
   // Create an instance of each strategy class to display
@@ -13,7 +14,8 @@ const StrategySelector = ({ onChange, value, id, label }) => {
     new Strategies.Pavlov(),
     new Strategies.Adaptive(),
     new Strategies.ReputationBased(),
-    new Strategies.MajorityRule()
+    new Strategies.MajorityRule(),
+    new MetaStrategy()
   ];
 
   return (

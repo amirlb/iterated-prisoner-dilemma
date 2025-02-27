@@ -3,17 +3,27 @@
   "version": "1.0.0",
   "description": "Simulation of the iterated prisoner's dilemma",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "start": "react-scripts start",
+    "server": "node server.js",
+    "dev": "concurrently \"npm run server\" \"npm run start\"",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "tournament": "node runTournament.js"
   },
-  "keywords": ["game theory", "prisoner's dilemma"],
+  "keywords": [
+    "game theory",
+    "prisoner's dilemma"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "body-parser": "^1.20.3",
     "chart.js": "^4.4.8",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
     "react": "^19.0.0",
     "react-chartjs-2": "^5.3.0",
     "react-dom": "^19.0.0",
@@ -30,5 +40,8 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
   }
 }
