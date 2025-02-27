@@ -147,13 +147,3 @@ header p {
   color: #555;
   line-height: 1.5;
 }
-
-/* Highlight for global information note */
-.highlight {
-  background-color: #fffde7;
-  border-left: 4px solid #ffd54f;
-  padding: 10px 15px;
-  border-radius: 0 4px 4px 0;
-  font-weight: 500;
-  color: #5d4037;
-} 

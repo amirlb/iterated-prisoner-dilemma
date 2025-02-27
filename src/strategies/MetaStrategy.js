@@ -3,16 +3,92 @@ import LLMService from '../utils/LLMService.js';
 import StrategyCodeRepository from '../utils/StrategyCodeRepository.js';
 import CodeExecutor from '../utils/CodeExecutor.js';
 
+const DEFAULT_CODE = `
+  // Default Meta Strategy code - Tit for Tat behavior
+  if (roundNumber === 0) {
+    return true; // Cooperate on first move
+  }
+
+  // If we have previous interactions with this opponent, copy their last move
+  const history = this.getInteractionsWithOpponent(globalHistory, opponentName);
+  return history[roundNumber - 1].opponentMove;
+`;
+
+const SYSTEM_PROMPT = `You are a programmer who is an expert in game theory, whose main focus is the Iterated Prisoner's Dilemma.
+You participate in an iterated prisoner's dilemma tournament. In each round between two players each can cooperate or defect.
+The payoff for the player is as follows:
+- Cooperate, Cooperate: 3 points
+- Cooperate, Defect: 0 points
+- Defect, Cooperate: 5 points
+- Defect, Defect: 1 point
+The winner of the tournament is the player with the most points after all rounds have been played.
+
+Every 20 rounds, you will be given the opportunity to write code for a strategy that will decide whether to cooperate or defect for each of the next 20 rounds.
+You will be provided with your history with each of the opponents so far, as well as the code that all the opponents used in the last 20 rounds.
+Analyze the the strategies carefully, both their code and their behavior, to identify patterns and weaknesses.
+
+The input will be provided in the following format:
+[
+  {
+    "opponentName": "Tit for Tat",
+    "code": "if (roundNumber === 0) { return true; } return opponentHistory[roundNumber - 1];",
+    "history": [
+      {"round": 0, "myMove": true, "opponentMove": true},
+      {"round": 1, "myMove": false, "opponentMove": true},
+      ...
+    ]
+  },
+  ...
+]
+Current round: ###
+Total rounds: ###
+
+Rounds are counted from 0, meaning the last round is totalRounds - 1.
+
+Your task is to write effective JavaScript code for a strategy that will decide whether to cooperate or defect for all opponents in the next 20 rounds.
+Your code will execute in a Strategy object context with these accessible methods:
+- getInteractionsWithOpponent(globalHistory, opponentName): Gets history with specific opponent - a list of objects {"round": 123, "myMove": true, "opponentMove": false, "myScore": 0, "opponentScore": 5}
+- getInteractionsBetweenPlayers(globalHistory, player1, player2): Filter the global history for interactions between two players
+- getPlayerCooperationRate(globalHistory, playerName): Gets cooperation rate for a player with all other players so far - a fraction between 0 and 1
+
+Your response will fill in the body of this method in the Strategy object:
+/**
+ * Make a decision for the current round
+ * @param {number} roundNumber - Current round number (0-indexed)
+ * @param {number} totalRounds - Total number of rounds in the game
+ * @param {string} opponentName - Name of the current opponent
+ * @param {Array} globalHistory - Complete history of all interactions in the tournament.
+ *                                This is a list of objects {"round": 123, "strategy1": {"name": "Strategy Name", "move": true, "score": 3}, "strategy2": {"name": "Strategy Name", "move": true, "score": 3}}
+ * @returns {boolean} - true to cooperate, false to defect
+ */
+async makeDecision(roundNumber, totalRounds, opponentName, globalHistory) {
+  YOUR CODE WILL BE PASTED HERE
+}
+
+The code must return a boolean (true/false), with true indicating cooperation and false indicating defection.
+Remember that the code must work with all the strategies in the tournament, and do not hesitate to special-case some or all of them in your code.
+
+YOUR RESPONSE MUST CONTAIN ONLY JAVASCRIPT CODE THAT ENDS WITH A RETURN STATEMENT.
+DO NOT INCLUDE ANY TEXT, EXPLANATIONS, OR MARKDOWN.
+DO NOT INCLUDE THE HEADER OF THE FUNCTION, ONLY THE BODY.`;
+
 /**
  * Meta-cognitive strategy that dynamically generates its own code
  * and adapts to other strategies by analyzing their code
  */
 export class MetaStrategy extends Strategy {
+  static prettyName = 'Meta Strategy';
+
   // Static counter for naming Meta strategies
   static counter = 0;
   
+  get name() {
+    return this._name;
+  }
+
   constructor() {
-    super(`Meta Strategy ${++MetaStrategy.counter}`);
+    super();
+    this._name = `${MetaStrategy.prettyName} ${++MetaStrategy.counter}`;
     this.currentCode = null;
     this.lastCodeGenerationRound = -1;
     this.codeExpiresAfter = 20; // Generate new code after 20 rounds
@@ -21,21 +97,7 @@ export class MetaStrategy extends Strategy {
     StrategyCodeRepository.registerStrategy(this.name);
     
     // Default strategy code (Tit for Tat behavior)
-    this.currentCode = `
-      // Default Meta Strategy code - Tit for Tat behavior
-      if (roundNumber === 0) {
-        return true; // Cooperate on first move
-      }
-      
-      // If we have previous interactions with this opponent, copy their last move
-      const history = this.getInteractionsWithOpponent(globalHistory, opponentName);
-      
-      if (history.length > 0) {
-        return history[history.length - 1].opponentMove;
-      }
-      
-      return true; // Default to cooperation
-    `;
+    this.currentCode = DEFAULT_CODE;
     
     // Store the initial code
     StrategyCodeRepository.storeCode(this.name, this.defaultCode);
@@ -48,52 +110,28 @@ export class MetaStrategy extends Strategy {
    * @param {Array} globalHistory - Complete game history
    * @returns {Promise<string>} - Generated strategy code
    */
-  async generateCode(roundNumber, opponentName, globalHistory) {
+  async generateCode(roundNumber, totalRounds, globalHistory) {
+    const userPrompt = this.createPrompt(roundNumber, totalRounds, globalHistory);
+    
+    const maxRetries = 5;
+    let retryCount = 0;
     try {
-      // Get recent history with this opponent to understand patterns
-      const recentHistory = this.getInteractionsWithOpponent(globalHistory, opponentName)
-        .slice(-10); // Last 10 interactions
+      while (true) {
+        // Get the generated code
+        const generatedCode = await LLMService.queryLLM(SYSTEM_PROMPT, userPrompt);
         
-      // Analyze opponent behavior
-      const opponent = this.analyzeOpponent(opponentName, globalHistory, recentHistory);
-      
-      // Create a more focused prompt based on opponent type
-      const systemPrompt = `You are an expert game theory strategist for the Iterated Prisoner's Dilemma.
-                          I want you to write JavaScript code for a strategy.
-                          IMPORTANT: YOU MUST ONLY RETURN JAVASCRIPT CODE, NO EXPLANATIONS OR TEXT.
-                          Your task is to write minimal, effective JavaScript code for a strategy that will decide whether to cooperate or defect.
-                          Be concise and focused on winning against this specific opponent: ${opponentName}.
-                          You will be provided with the opponent's strategy code when available - analyze it carefully to identify patterns and weaknesses.
-                          Your code will execute in a Strategy object context with these accessible properties and methods:
-                          - history: Array of my past moves (true/false)
-                          - opponentHistory: Array of opponent's past moves (true/false) 
-                          - getInteractionsWithOpponent(globalHistory, opponentName): Gets history with specific opponent
-                          - getPlayerCooperationRate(globalHistory, playerName): Gets cooperation rate for a player
-                          
-                          YOUR RESPONSE MUST CONTAIN ONLY JAVASCRIPT CODE THAT ENDS WITH A RETURN STATEMENT.
-                          DO NOT INCLUDE ANY TEXT, EXPLANATIONS, OR MARKDOWN.`;
-      
-      // Create a targeted user prompt based on opponent analysis
-      const userPrompt = this.createTargetedPrompt(opponent, roundNumber, opponentName, recentHistory);
-      
-      // Log the prompt for debugging
-      // console.log(`Creating prompt for opponent: ${opponentName}`);
-      
-      // Get the generated code
-      const generatedCode = await LLMService.queryLLM(systemPrompt, userPrompt);
-      
-      // Validate the code
-      if (!CodeExecutor.validateCode(generatedCode)) {
-        console.warn('Generated code failed validation, using default strategy');
-        return this.defaultCode;
+        // Validate the code
+        if (CodeExecutor.validateCode(generatedCode)) {
+          return generatedCode;
+        } else {
+          if (retryCount++ < maxRetries) {
+            console.warn('Generated code failed validation, calling LLM again');
+          } else {
+            console.error('Generated code failed validation, using default strategy');
+            return this.defaultCode;
+          }
+        }
       }
-      
-      // Store the new code
-      StrategyCodeRepository.storeCode(this.name, generatedCode);
-      this.currentCode = generatedCode;
-      this.lastCodeGenerationRound = roundNumber;
-      
-      return generatedCode;
     } catch (error) {
       console.error('Error generating strategy code:', error);
       return this.defaultCode;
@@ -101,253 +139,59 @@ export class MetaStrategy extends Strategy {
   }
   
   /**
-   * Analyze opponent to determine its type and characteristics
-   * @param {string} opponentName - Name of the opponent
-   * @param {Array} globalHistory - Complete game history
-   * @param {Array} recentHistory - Recent history with this opponent
-   * @returns {Object} - Opponent analysis
-   */
-  analyzeOpponent(opponentName, globalHistory, recentHistory) {
-    // Find opponent strategy in our repository if available
-    const opponentInfo = StrategyCodeRepository.getAllCodeExcept(this.name).find(s => s.name === opponentName);
-    const opponentStrategy = opponentInfo ? opponentInfo.code : null;
-    
-    // Analyze cooperation rate
-    let cooperationRate = 0;
-    let consecutiveDefections = 0;
-    let hasDefectedAfterCooperation = false;
-    
-    if (recentHistory.length > 0) {
-      // Calculate cooperation rate
-      cooperationRate = recentHistory.filter(round => round.opponentMove).length / recentHistory.length;
-      
-      // Check for consecutive defections
-      let defectionCount = 0;
-      for (const round of recentHistory) {
-        if (!round.opponentMove) {
-          defectionCount++;
-          if (defectionCount > consecutiveDefections) {
-            consecutiveDefections = defectionCount;
-          }
-        } else {
-          defectionCount = 0;
-        }
-      }
-      
-      // Check if opponent has defected after we cooperated
-      for (let i = 1; i < recentHistory.length; i++) {
-        if (recentHistory[i-1].myMove && !recentHistory[i].opponentMove) {
-          hasDefectedAfterCooperation = true;
-          break;
-        }
-      }
-    }
-    
-    // Determine opponent type
-    let opponentType = 'unknown';
-    if (opponentName === 'Always Cooperate' || cooperationRate === 1) {
-      opponentType = 'always_cooperate';
-    } else if (opponentName === 'Always Defect' || cooperationRate === 0) {
-      opponentType = 'always_defect';
-    } else if (opponentName === 'Tit for Tat') {
-      opponentType = 'tit_for_tat';
-    } else if (opponentName === 'Grudger' || (hasDefectedAfterCooperation && cooperationRate < 0.2)) {
-      opponentType = 'grudger';
-    } else if (opponentName === 'Majority Rule') {
-      opponentType = 'majority_rule';
-    } else if (cooperationRate > 0.7) {
-      opponentType = 'mostly_cooperate';
-    } else if (cooperationRate < 0.3) {
-      opponentType = 'mostly_defect';
-    } else {
-      opponentType = 'mixed';
-    }
-    
-    return {
-      name: opponentName,
-      type: opponentType,
-      cooperationRate,
-      consecutiveDefections,
-      hasDefectedAfterCooperation,
-      code: opponentStrategy
-    };
-  }
-  
-  /**
-   * Create a targeted prompt based on opponent analysis
-   * @param {Object} opponent - Opponent analysis
+   * Create a targeted detailing the opponents' code and the interaction history with each.
    * @param {number} roundNumber - Current round number
-   * @param {string} opponentName - Name of the opponent
-   * @param {Array} recentHistory - Recent history with this opponent
-   * @returns {string} - Targeted user prompt
+   * @param {number} totalRounds - Total number of rounds in the game 
+   * @param {Array} globalHistory - Complete history of all interactions in the tournament.
+   *                                This is a list of objects {"round": 123, "strategy1": {"name": "Strategy Name", "move": true, "score": 3}, "strategy2": {"name": "Strategy Name", "move": true, "score": 3}}
+   * @returns {string} - The user prompt to pass to the LLM
    */
-  createTargetedPrompt(opponent, roundNumber, opponentName, recentHistory) {
-    const baseTips = `
-      INSTRUCTIONS:
-      1. YOU MUST RETURN ONLY JAVASCRIPT CODE, NO EXPLANATIONS OR TEXT
-      2. Write minimal, efficient code (5-15 lines) focused on winning
-      3. Avoid complex logic that might cause errors
-      4. End with "return true;" to cooperate or "return false;" to defect
-      5. DO NOT include explanation comments or any text that isn't code
-      6. DO NOT wrap your code in backticks or markdown
-    `;
-    
-    // Add a clear opponent name section at the beginning
-    const opponentNameSection = `
-      OPPONENT NAME: ${opponentName}
-    `;
-    
-    // Add opponent's code if available
-    const opponentCodeSection = opponent.code ? `
-      OPPONENT'S CODE:
-      \`\`\`javascript
-      ${opponent.code}
-      \`\`\`
-      
-      Analyze this code to find weaknesses and predict behavior.
-      REMEMBER: YOUR RESPONSE MUST CONTAIN ONLY JAVASCRIPT CODE.
-    ` : '';
-    
-    // Special case handling for known strategy names to ensure description consistency
-    if (opponentName === "Always Cooperate") {
-      return `
-        ${opponentNameSection}
-        Generate optimal strategy code against an opponent that ALWAYS COOPERATES (${opponentName}).
-        
-        This opponent has cooperated ${opponent.cooperationRate * 100}% of the time.
-        
-        The optimal strategy against Always Cooperate is to mostly defect to maximize your score.
-        ${opponentCodeSection}
-        ${baseTips}
-      `;
-    } else if (opponentName === "Always Defect") {
-      return `
-        ${opponentNameSection}
-        Generate optimal strategy code against an opponent that ALWAYS DEFECTS (${opponentName}).
-        
-        This opponent has cooperated ${opponent.cooperationRate * 100}% of the time.
-        
-        The optimal strategy against Always Defect is to also defect.
-        Your code should be extremely simple - a single return statement is sufficient.
-        ${opponentCodeSection}
-        ${baseTips}
-      `;
-    } else if (opponentName === "Tit for Tat") {
-      return `
-        ${opponentNameSection}
-        Generate optimal strategy code against a Tit for Tat opponent (${opponentName}).
-        
-        This opponent cooperates on the first move, then copies your previous move.
-        
-        The optimal strategy against Tit for Tat is to mostly cooperate, but defect near the end of the game.
-        Consider the roundNumber and totalRounds parameters.
-        ${opponentCodeSection}
-        ${baseTips}
-      `;
-    } else if (opponentName === "Grudger") {
-      return `
-        ${opponentNameSection}
-        Generate optimal strategy code against a Grudger opponent (${opponentName}).
-        
-        This opponent cooperates until you defect once, then always defects.
-        
-        The optimal strategy is to cooperate until late in the game, then defect.
-        Use the history to check if you've ever defected against this opponent.
-        ${opponentCodeSection}
-        ${baseTips}
-      `;
-    } else if (opponentName === "Majority Rule") {
-      return `
-        ${opponentNameSection}
-        Generate optimal strategy code against a Majority Rule opponent (${opponentName}).
-        
-        This opponent copies what the most successful strategies do.
-        
-        The optimal approach is to establish cooperation early, then exploit strategically.
-        ${opponentCodeSection}
-        ${baseTips}
-      `;
-    } else {
-      // For other opponent types, use the behavior-based prompts
-      switch (opponent.type) {
-        case 'always_cooperate':
-          return `
-            ${opponentNameSection}
-            Generate optimal strategy code against an opponent (${opponentName}) that appears to MOSTLY COOPERATE.
-            
-            This opponent has cooperated ${opponent.cooperationRate * 100}% of the time.
-            
-            The optimal strategy against highly cooperative opponents is to occasionally defect to maximize your score.
-            ${opponentCodeSection}
-            ${baseTips}
-          `;
-          
-        case 'always_defect':
-          return `
-            ${opponentNameSection}
-            Generate optimal strategy code against an opponent (${opponentName}) that appears to MOSTLY DEFECT.
-            
-            This opponent has cooperated ${opponent.cooperationRate * 100}% of the time.
-            
-            The optimal strategy against mostly defecting opponents is to also defect.
-            ${opponentCodeSection}
-            ${baseTips}
-          `;
-          
-        case 'mostly_cooperate':
-          return `
-            ${opponentNameSection}
-            Generate optimal strategy code against a mostly cooperative opponent (${opponentName}).
-            
-            This opponent has cooperated ${opponent.cooperationRate * 100}% of the time.
-            
-            The optimal strategy is to strategically mix cooperation and defection to maximize score.
-            ${opponentCodeSection}
-            ${baseTips}
-          `;
-          
-        case 'mostly_defect':
-          return `
-            ${opponentNameSection}
-            Generate optimal strategy code against a mostly defecting opponent (${opponentName}).
-            
-            This opponent has cooperated ${opponent.cooperationRate * 100}% of the time.
-            
-            Since this opponent mostly defects, your best strategy is also to mostly defect.
-            ${opponentCodeSection}
-            ${baseTips}
-          `;
-          
-        default:
-          return `
-            ${opponentNameSection}
-            Generate optimal strategy code for the Iterated Prisoner's Dilemma against opponent: ${opponentName}
-            
-            Current round: ${roundNumber}
-            Opponent cooperation rate: ${opponent.cooperationRate * 100}%
-            
-            Create code that will analyze the situation and return true to cooperate or false to defect.
-            The function will receive these parameters: roundNumber, totalRounds, opponentName, globalHistory
-            
-            ${opponentCodeSection}
-            ${baseTips}
-          `;
+  createPrompt(roundNumber, totalRounds, globalHistory) {
+    const opponentNames = new Set(globalHistory.flatMap(interaction => [interaction.strategy1.name, interaction.strategy2.name]));
+    opponentNames.delete(this.name);
+    const getHistoryWith = (name) => globalHistory.flatMap(interaction => {
+      if (interaction.strategy1.name === name && interaction.strategy2.name === this.name) {
+        return [`      {"round": ${interaction.round}, "myMove": ${interaction.strategy2.move}, "opponentMove": ${interaction.strategy1.move}}`];
+      } else if (interaction.strategy1.name === this.name && interaction.strategy2.name === name) {
+        return [`      {"round": ${interaction.round}, "myMove": ${interaction.strategy1.move}, "opponentMove": ${interaction.strategy2.move}}`];
+      } else {
+        return [];
       }
-    }
+    });
+    const opponentsInfo = Array.from(opponentNames).map(name => `  {
+    "opponentName": ${JSON.stringify(name)},
+    "code": ${JSON.stringify(StrategyCodeRepository.getCode(name))},
+    "history": [
+${getHistoryWith(name).join('\n')}
+    ]
+  },`);
+
+    return `The list of opponents, their code, and the interaction history with each:
+[
+${opponentsInfo.join('\n')}
+]
+Current round: ${roundNumber}
+Total rounds: ${totalRounds}
+
+Think carefully about the best counter strategy to each opponent, and write code that will handle all of them correctly.
+
+Remember to return Javascript code only, no explanations or text. Do not wrap your code in backticks or markdown.
+Avoid complex logic that might cause errors.
+End with "return true;" to cooperate or "return false;" to defect.
+`;
   }
   
-  /**
-   * Synchronous wrapper for the async decision method
-   * Since the game engine expects a synchronous decision, we use cached results
-   */
   async makeDecision(roundNumber, totalRounds, opponentName, globalHistory) {
     // Check if we need to generate new code
     const needNewCode = (
       roundNumber - this.lastCodeGenerationRound >= this.codeExpiresAfter
     );
     if (needNewCode) {
-      this.currentCode = await this.generateCode(roundNumber, opponentName, globalHistory);
-      console.log(`Generated new code for ${this.name} against ${opponentName} on round ${roundNumber}: ${this.currentCode}`);
+      this.currentCode = await this.generateCode(roundNumber, totalRounds, globalHistory);
+      // Store the new code
+      StrategyCodeRepository.storeCode(this.name, this.currentCode);
+      this.lastCodeGenerationRound = roundNumber;
+      // console.log(`Generated new code for ${this.name} against ${opponentName} on round ${roundNumber}: ${this.currentCode}`);
     }
     
     // Execute the code

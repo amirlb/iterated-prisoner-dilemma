@@ -106,9 +106,7 @@ Example of a custom strategy:
 
 ```javascript
 export class MyCustomStrategy extends Strategy {
-  constructor() {
-    super('My Custom Strategy');
-  }
+  static prettyName = 'My Custom Strategy';
   
   async makeDecision(roundNumber, totalRounds, opponentName, globalHistory) {
     // Your decision-making logic here, using the globalHistory parameter
@@ -121,9 +119,7 @@ Example of a meta-cognitive strategy:
 
 ```javascript
 export class MyMetaStrategy extends Strategy {
-  constructor() {
-    super('My Meta Strategy');
-  }
+  static prettyName = 'My Meta Strategy';
   
   async analyzeOpponent(opponentName) {
     // Use LLM to analyze opponent's strategy

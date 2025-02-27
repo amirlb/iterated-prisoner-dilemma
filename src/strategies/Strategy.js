@@ -3,8 +3,10 @@
  * All strategies should extend this class
  */
 export class Strategy {
-  constructor(name) {
-    this.name = name;
+  static prettyName = 'Strategy';
+
+  get name() {
+    return this.constructor.prettyName;
   }
 
   /**
@@ -79,7 +81,8 @@ export class Strategy {
    * @param {number} roundNumber - Current round number (0-indexed)
    * @param {number} totalRounds - Total number of rounds in the game
    * @param {string} opponentName - Name of the current opponent
-   * @param {Array} globalHistory - Complete history of all interactions in the tournament
+   * @param {Array} globalHistory - Complete history of all interactions in the tournament.
+   *                                This is a list of objects {"round": 123, "strategy1": {"name": "Strategy Name", "move": true, "score": 3}, "strategy2": {"name": "Strategy Name", "move": true, "score": 3}}
    * @returns {boolean} - true to cooperate, false to defect
    */
   async makeDecision(roundNumber, totalRounds, opponentName, globalHistory) {
@@ -91,9 +94,7 @@ export class Strategy {
  * Always cooperate strategy
  */
 export class AlwaysCooperate extends Strategy {
-  constructor() {
-    super('Always Cooperate');
-  }
+  static prettyName = 'Always Cooperate';
 
   async makeDecision() {
     return true; // Always cooperate
@@ -104,9 +105,7 @@ export class AlwaysCooperate extends Strategy {
  * Always defect strategy
  */
 export class AlwaysDefect extends Strategy {
-  constructor() {
-    super('Always Defect');
-  }
+  static prettyName = 'Always Defect';
 
   async makeDecision() {
     return false; // Always defect
@@ -117,9 +116,7 @@ export class AlwaysDefect extends Strategy {
  * Tit for Tat strategy - Start with cooperation, then copy opponent's last move
  */
 export class TitForTat extends Strategy {
-  constructor() {
-    super('Tit for Tat');
-  }
+  static prettyName = 'Tit for Tat';
 
   async makeDecision(roundNumber, totalRounds, opponentName, globalHistory) {
     if (roundNumber === 0) {
@@ -138,9 +135,7 @@ export class TitForTat extends Strategy {
  * Grudger strategy - Cooperate until opponent defects, then always defect
  */
 export class Grudger extends Strategy {
-  constructor() {
-    super('Grudger');
-  }
+  static prettyName = 'Grudger';
 
   async makeDecision(roundNumber, totalRounds, opponentName, globalHistory) {
     // Get history with this specific opponent
@@ -157,9 +152,7 @@ export class Grudger extends Strategy {
  * Random strategy - 50% chance to cooperate or defect
  */
 export class Random extends Strategy {
-  constructor() {
-    super('Random');
-  }
+  static prettyName = 'Random';
 
   async makeDecision() {
     return Math.random() >= 0.5;
@@ -170,9 +163,7 @@ export class Random extends Strategy {
  * Tit for Two Tats - Only defect if opponent defected twice in a row
  */
 export class TitForTwoTats extends Strategy {
-  constructor() {
-    super('Tit for Two Tats');
-  }
+  static prettyName = 'Tit for Two Tats';
 
   async makeDecision(roundNumber, totalRounds, opponentName, globalHistory) {
     // Get history with this specific opponent
@@ -195,9 +186,7 @@ export class TitForTwoTats extends Strategy {
  * Cooperate if both players made the same move last round, otherwise defect
  */
 export class Pavlov extends Strategy {
-  constructor() {
-    super('Pavlov');
-  }
+  static prettyName = 'Pavlov';
 
   async makeDecision(roundNumber, totalRounds, opponentName, globalHistory) {
     if (roundNumber === 0) {
@@ -216,8 +205,10 @@ export class Pavlov extends Strategy {
  * Adaptive strategy - Adjusts based on opponent's behavior pattern
  */
 export class Adaptive extends Strategy {
+  static prettyName = 'Adaptive';
+
   constructor() {
-    super('Adaptive');
+    super();
     this.cooperationRate = 0.5; // Initial cooperation probability
   }
 
@@ -241,9 +232,7 @@ export class Adaptive extends Strategy {
  * Reputation-based strategy - Decides based on opponent's reputation with other players
  */
 export class ReputationBased extends Strategy {
-  constructor() {
-    super('Reputation Based');
-  }
+  static prettyName = 'Reputation Based';
   
   async makeDecision(roundNumber, totalRounds, opponentName, globalHistory) {
     if (roundNumber === 0) {
@@ -270,9 +259,7 @@ export class ReputationBased extends Strategy {
  * MajorityRule - Copies what the majority of successful players do against this opponent
  */
 export class MajorityRule extends Strategy {
-  constructor() {
-    super('Majority Rule');
-  }
+  static prettyName = 'Majority Rule';
   
   async makeDecision(roundNumber, totalRounds, opponentName, globalHistory) {
     if (roundNumber === 0) {

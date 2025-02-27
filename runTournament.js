@@ -2,6 +2,7 @@
 import GameEngine from './src/utils/GameEngine.js';
 import * as Strategies from './src/strategies/Strategy.js';
 import { MetaStrategy } from './src/strategies/MetaStrategy.js';
+import StrategyCodeRepository from './src/utils/StrategyCodeRepository.js';
 
 // Number of rounds to run in the tournament
 const ROUNDS = 100;
@@ -28,7 +29,13 @@ async function runTournament() {
     new MetaStrategy(),
     new MetaStrategy() // Add a second instance to test meta-meta interactions
   ];
-  
+
+  strategies.forEach(strategy => {
+    if (!(strategy instanceof MetaStrategy)) {
+      StrategyCodeRepository.registerStandardStrategy(strategy);
+    }
+  });
+
   console.log("Starting tournament...");
   const results = await gameEngine.runTournament(strategies, ROUNDS);
   console.log("Tournament completed!\n");

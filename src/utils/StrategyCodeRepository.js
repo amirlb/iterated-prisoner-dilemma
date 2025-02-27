@@ -59,7 +59,7 @@ class StrategyCodeRepository {
    * @param {string} code - The generated code
    */
   storeCode(name, code) {
-    this.codeMap.set(name, { code, name });
+    this.codeMap.set(name, code);
   }
   
   /**
@@ -80,7 +80,7 @@ class StrategyCodeRepository {
     const result = [];
     this.codeMap.forEach((value, key) => {
       if (key !== excludeName && value !== null) {
-        result.push({ id: key, ...value });
+        result.push({ id: key, code: value });
       }
     });
     return result;

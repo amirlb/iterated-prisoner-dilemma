@@ -3,7 +3,7 @@ import * as Strategies from '../strategies/Strategy.js';
 import { MetaStrategy } from '../strategies/MetaStrategy.js';
 
 const StrategySelector = ({ onChange, value, id, label }) => {
-  // List of strategy classes to display
+  // Create a list of strategy classes to display
   const strategiesList = [
     Strategies.AlwaysCooperate,
     Strategies.AlwaysDefect,
@@ -15,7 +15,7 @@ const StrategySelector = ({ onChange, value, id, label }) => {
     Strategies.Adaptive,
     Strategies.ReputationBased,
     Strategies.MajorityRule,
-    MetaStrategy,
+    MetaStrategy
   ];
 
   return (
@@ -27,8 +27,8 @@ const StrategySelector = ({ onChange, value, id, label }) => {
         onChange={(e) => onChange(e.target.value)}
       >
         {strategiesList.map((strategy, index) => (
-          <option key={index} value={strategy.name}>
-            {strategy.name}
+          <option key={index} value={strategy.prettyName}>
+            {strategy.prettyName}
           </option>
         ))}
       </select>

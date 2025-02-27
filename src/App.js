@@ -24,18 +24,18 @@ const App = () => {
   // Function to get strategy instance by name
   const getStrategyByName = (name) => {
     switch (name) {
-      case 'Always Cooperate': return new Strategies.AlwaysCooperate();
-      case 'Always Defect': return new Strategies.AlwaysDefect();
-      case 'Tit for Tat': return new Strategies.TitForTat();
-      case 'Grudger': return new Strategies.Grudger();
-      case 'Random': return new Strategies.Random();
-      case 'Tit for Two Tats': return new Strategies.TitForTwoTats();
-      case 'Pavlov': return new Strategies.Pavlov();
-      case 'Adaptive': return new Strategies.Adaptive();
-      case 'Reputation Based': return new Strategies.ReputationBased();
-      case 'Majority Rule': return new Strategies.MajorityRule();
-      case 'Meta Strategy': return new MetaStrategy();
-      default: return new Strategies.TitForTat();
+      case Strategies.AlwaysCooperate.prettyName: return new Strategies.AlwaysCooperate();
+      case Strategies.AlwaysDefect.prettyName: return new Strategies.AlwaysDefect();
+      case Strategies.TitForTat.prettyName: return new Strategies.TitForTat();
+      case Strategies.Grudger.prettyName: return new Strategies.Grudger();
+      case Strategies.Random.prettyName: return new Strategies.Random();
+      case Strategies.TitForTwoTats.prettyName: return new Strategies.TitForTwoTats();
+      case Strategies.Pavlov.prettyName: return new Strategies.Pavlov();
+      case Strategies.Adaptive.prettyName: return new Strategies.Adaptive();
+      case Strategies.ReputationBased.prettyName: return new Strategies.ReputationBased();
+      case Strategies.MajorityRule.prettyName: return new Strategies.MajorityRule();
+      case MetaStrategy.prettyName: return new MetaStrategy();
+      default: throw new Error(`Unknown strategy: ${name}`);
     }
   };
   
@@ -64,6 +64,7 @@ const App = () => {
       new Strategies.Adaptive(),
       new Strategies.ReputationBased(),
       new Strategies.MajorityRule(),
+      new MetaStrategy(),
       new MetaStrategy()
     ];
     
@@ -88,10 +89,6 @@ const App = () => {
         <p>
           Explore different strategies in the classic game theory scenario of the prisoner's dilemma.
           In this simulation, you can see how different strategies perform when played repeatedly.
-        </p>
-        <p className="highlight">
-          This version includes global information sharing - strategies can observe and learn 
-          from all interactions between all participants, not just their own!
         </p>
       </header>
       
