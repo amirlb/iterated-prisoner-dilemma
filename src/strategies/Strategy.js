@@ -5,26 +5,6 @@
 export class Strategy {
   constructor(name) {
     this.name = name;
-    this.history = [];
-    this.opponentHistory = [];
-  }
-
-  /**
-   * Reset the history for a new game
-   */
-  reset() {
-    this.history = [];
-    this.opponentHistory = [];
-  }
-
-  /**
-   * Records the moves made in the last round
-   * @param {boolean} myMove - true for cooperate, false for defect
-   * @param {boolean} opponentMove - true for cooperate, false for defect
-   */
-  recordRound(myMove, opponentMove) {
-    this.history.push(myMove);
-    this.opponentHistory.push(opponentMove);
   }
 
   /**
@@ -102,7 +82,7 @@ export class Strategy {
    * @param {Array} globalHistory - Complete history of all interactions in the tournament
    * @returns {boolean} - true to cooperate, false to defect
    */
-  makeDecision(roundNumber, totalRounds, opponentName, globalHistory = []) {
+  async makeDecision(roundNumber, totalRounds, opponentName, globalHistory) {
     throw new Error('Strategy subclasses must implement makeDecision method');
   }
 }
@@ -115,7 +95,7 @@ export class AlwaysCooperate extends Strategy {
     super('Always Cooperate');
   }
 
-  makeDecision() {
+  async makeDecision() {
     return true; // Always cooperate
   }
 }
@@ -128,7 +108,7 @@ export class AlwaysDefect extends Strategy {
     super('Always Defect');
   }
 
-  makeDecision() {
+  async makeDecision() {
     return false; // Always defect
   }
 }
@@ -141,22 +121,16 @@ export class TitForTat extends Strategy {
     super('Tit for Tat');
   }
 
-  makeDecision(roundNumber, totalRounds, opponentName, globalHistory) {
+  async makeDecision(roundNumber, totalRounds, opponentName, globalHistory) {
     if (roundNumber === 0) {
       return true; // Cooperate on first move
     }
     
     // Get history with this specific opponent
     const history = this.getInteractionsWithOpponent(globalHistory, opponentName);
-    
-    // If we have previous interactions with this opponent, copy their last move
-    if (history.length > 0) {
-      return history[history.length - 1].opponentMove;
-    }
-    
-    // Fallback to regular tit for tat using local history
-    return this.opponentHistory.length > 0 ? 
-      this.opponentHistory[this.opponentHistory.length - 1] : true;
+
+    // Copy the opponent's last move
+    return history[roundNumber - 1].opponentMove;
   }
 }
 
@@ -168,7 +142,7 @@ export class Grudger extends Strategy {
     super('Grudger');
   }
 
-  makeDecision(roundNumber, totalRounds, opponentName, globalHistory) {
+  async makeDecision(roundNumber, totalRounds, opponentName, globalHistory) {
     // Get history with this specific opponent
     const history = this.getInteractionsWithOpponent(globalHistory, opponentName);
     
@@ -187,7 +161,7 @@ export class Random extends Strategy {
     super('Random');
   }
 
-  makeDecision() {
+  async makeDecision() {
     return Math.random() >= 0.5;
   }
 }
@@ -200,7 +174,7 @@ export class TitForTwoTats extends Strategy {
     super('Tit for Two Tats');
   }
 
-  makeDecision(roundNumber, totalRounds, opponentName, globalHistory) {
+  async makeDecision(roundNumber, totalRounds, opponentName, globalHistory) {
     // Get history with this specific opponent
     const history = this.getInteractionsWithOpponent(globalHistory, opponentName);
     
@@ -209,8 +183,8 @@ export class TitForTwoTats extends Strategy {
     }
     
     // Defect only if opponent defected in the last two rounds
-    const lastMove = history[history.length - 1].opponentMove;
-    const secondLastMove = history[history.length - 2].opponentMove;
+    const lastMove = history[roundNumber - 1].opponentMove;
+    const secondLastMove = history[roundNumber - 2].opponentMove;
     
     return !(lastMove === false && secondLastMove === false);
   }
@@ -225,7 +199,7 @@ export class Pavlov extends Strategy {
     super('Pavlov');
   }
 
-  makeDecision(roundNumber, totalRounds, opponentName, globalHistory) {
+  async makeDecision(roundNumber, totalRounds, opponentName, globalHistory) {
     if (roundNumber === 0) {
       return true; // Cooperate on first move
     }
@@ -233,18 +207,8 @@ export class Pavlov extends Strategy {
     // Get history with this specific opponent
     const history = this.getInteractionsWithOpponent(globalHistory, opponentName);
     
-    if (history.length > 0) {
-      const lastRound = history[history.length - 1];
-      return lastRound.myMove === lastRound.opponentMove;
-    }
-    
-    // Fallback to regular pavlov using local history
-    if (this.history.length > 0) {
-      const lastIndex = this.history.length - 1;
-      return this.history[lastIndex] === this.opponentHistory[lastIndex];
-    }
-    
-    return true;
+    const lastRound = history[roundNumber - 1];
+    return lastRound.myMove === lastRound.opponentMove;
   }
 }
 
@@ -257,7 +221,7 @@ export class Adaptive extends Strategy {
     this.cooperationRate = 0.5; // Initial cooperation probability
   }
 
-  makeDecision(roundNumber, totalRounds, opponentName, globalHistory) {
+  async makeDecision(roundNumber, totalRounds, opponentName, globalHistory) {
     if (roundNumber === 0) {
       return true; // Start with cooperation
     }
@@ -271,11 +235,6 @@ export class Adaptive extends Strategy {
     // Decide based on probability
     return Math.random() < this.cooperationRate;
   }
-  
-  reset() {
-    super.reset();
-    this.cooperationRate = 0.5; // Reset cooperation probability
-  }
 }
 
 /**
@@ -286,8 +245,8 @@ export class ReputationBased extends Strategy {
     super('Reputation Based');
   }
   
-  makeDecision(roundNumber, totalRounds, opponentName, globalHistory) {
-    if (roundNumber === 0 || globalHistory.length === 0) {
+  async makeDecision(roundNumber, totalRounds, opponentName, globalHistory) {
+    if (roundNumber === 0) {
       return true; // Cooperate on first move or if no history
     }
     
@@ -303,11 +262,7 @@ export class ReputationBased extends Strategy {
     
     // For opponents with mixed reputation, use Tit for Tat
     const history = this.getInteractionsWithOpponent(globalHistory, opponentName);
-    if (history.length > 0) {
-      return history[history.length - 1].opponentMove;
-    }
-    
-    return true; // Default to cooperation
+    return history[roundNumber - 1].opponentMove;
   }
 }
 
@@ -319,8 +274,8 @@ export class MajorityRule extends Strategy {
     super('Majority Rule');
   }
   
-  makeDecision(roundNumber, totalRounds, opponentName, globalHistory) {
-    if (roundNumber === 0 || globalHistory.length === 0) {
+  async makeDecision(roundNumber, totalRounds, opponentName, globalHistory) {
+    if (roundNumber === 0) {
       return true; // Cooperate on first move or if no history
     }
     

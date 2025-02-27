@@ -28,37 +28,9 @@ async function runTournament() {
     new MetaStrategy(),
     new MetaStrategy() // Add a second instance to test meta-meta interactions
   ];
-
-  // Add distinguishable names to MetaStrategy instances
-  const metaStrategies = strategies.filter(s => s instanceof MetaStrategy);
-  metaStrategies.forEach((strategy, index) => {
-    strategy.name = `Meta Strategy ${index + 1}`;
-  });
   
   console.log("Starting tournament...");
-  
-  // Give MetaStrategy instances access to all strategies
-  try {
-    // Initialize meta strategies with all other strategies
-    for (const strategy of metaStrategies) {
-      // Give each meta strategy information about all strategies in the tournament
-      strategy.initializeWithAllStrategies(strategies);
-    }
-    
-    // Execute any async initialization needed for the tournament
-    for (const strategy of strategies) {
-      if (typeof strategy.makeDecisionAsync === 'function') {
-        // Pre-generate code for the first round against a default opponent
-        await strategy.makeDecisionAsync(0, ROUNDS, 'Tit for Tat', []);
-      }
-    }
-    console.log("Strategy initialization completed.");
-  } catch (error) {
-    console.warn("Strategy initialization warning:", error.message);
-  }
-  
-  // Now run the tournament
-  const results = gameEngine.runTournament(strategies, ROUNDS);
+  const results = await gameEngine.runTournament(strategies, ROUNDS);
   console.log("Tournament completed!\n");
 
   // Display rankings
@@ -111,7 +83,7 @@ async function runTournament() {
     
   // Display meta-strategy interactions specifically
   console.log("\n=== Meta Strategy Interactions ===");
-  const metaNames = metaStrategies.map(s => s.name);
+  const metaNames = strategies.filter(s => s instanceof MetaStrategy).map(s => s.name);
   
   results.matchResults.forEach(match => {
     if (metaNames.includes(match.strategy1.name) && metaNames.includes(match.strategy2.name)) {

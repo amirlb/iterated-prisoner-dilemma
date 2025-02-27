@@ -3,19 +3,19 @@ import * as Strategies from '../strategies/Strategy.js';
 import { MetaStrategy } from '../strategies/MetaStrategy.js';
 
 const StrategySelector = ({ onChange, value, id, label }) => {
-  // Create an instance of each strategy class to display
+  // List of strategy classes to display
   const strategiesList = [
-    new Strategies.AlwaysCooperate(),
-    new Strategies.AlwaysDefect(),
-    new Strategies.TitForTat(),
-    new Strategies.Grudger(),
-    new Strategies.Random(),
-    new Strategies.TitForTwoTats(),
-    new Strategies.Pavlov(),
-    new Strategies.Adaptive(),
-    new Strategies.ReputationBased(),
-    new Strategies.MajorityRule(),
-    new MetaStrategy()
+    Strategies.AlwaysCooperate,
+    Strategies.AlwaysDefect,
+    Strategies.TitForTat,
+    Strategies.Grudger,
+    Strategies.Random,
+    Strategies.TitForTwoTats,
+    Strategies.Pavlov,
+    Strategies.Adaptive,
+    Strategies.ReputationBased,
+    Strategies.MajorityRule,
+    MetaStrategy,
   ];
 
   return (

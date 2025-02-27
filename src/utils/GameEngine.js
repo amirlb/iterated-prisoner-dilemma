@@ -64,26 +64,14 @@ export default class GameEngine {
   }
 
   /**
-   * Get all previous interactions for a specific strategy
-   * @param {string} strategyName - Name of the strategy
-   * @returns {Array} - All interactions involving this strategy
-   */
-  getStrategyHistory(strategyName) {
-    return this.globalHistory.filter(record => 
-      record.strategy1.name === strategyName || record.strategy2.name === strategyName
-    );
-  }
-
-  /**
    * Run a tournament among multiple strategies
    * @param {Array} strategies - Array of strategy instances
    * @param {number} rounds - Number of rounds per match
    * @returns {Object} - Tournament results
    */
-  runTournament(strategies, rounds) {
+  async runTournament(strategies, rounds) {
     // Reset game engine and all strategies
     this.reset();
-    strategies.forEach(strategy => strategy.reset());
     
     const results = {};
     const scores = {};
@@ -115,14 +103,14 @@ export default class GameEngine {
           }
           
           // Get decisions from both strategies with access to complete history
-          const move1 = strategy1.makeDecision(
+          const move1 = await strategy1.makeDecision(
             round, 
             rounds, 
             strategy2.name, 
             this.globalHistory
           );
           
-          const move2 = strategy2.makeDecision(
+          const move2 = await strategy2.makeDecision(
             round, 
             rounds, 
             strategy1.name, 
@@ -179,13 +167,6 @@ export default class GameEngine {
         // Update scores
         scores[strategy1Name] += score1;
         scores[strategy2Name] += score2;
-        
-        // Update local history in strategy instances
-        const strategy1 = strategies.find(s => s.name === strategy1Name);
-        const strategy2 = strategies.find(s => s.name === strategy2Name);
-        
-        if (strategy1) strategy1.recordRound(move1, move2);
-        if (strategy2) strategy2.recordRound(move2, move1);
       }
     }
     
@@ -238,10 +219,8 @@ export default class GameEngine {
    * @param {number} rounds - Number of rounds to play
    * @returns {Object} - Game results
    */
-  runGame(strategy1, strategy2, rounds) {
+  async runGame(strategy1, strategy2, rounds) {
     // Reset strategies and game engine
-    strategy1.reset();
-    strategy2.reset();
     this.reset();
     
     const roundHistory = [];
@@ -249,16 +228,12 @@ export default class GameEngine {
     // Play all rounds
     for (let round = 0; round < rounds; round++) {
       // Get decisions from both strategies (without global history since this is just two players)
-      const move1 = strategy1.makeDecision(round, rounds, strategy2.name, roundHistory);
-      const move2 = strategy2.makeDecision(round, rounds, strategy1.name, roundHistory);
+      const move1 = await strategy1.makeDecision(round, rounds, strategy2.name, roundHistory);
+      const move2 = await strategy2.makeDecision(round, rounds, strategy1.name, roundHistory);
       
       // Calculate payoffs
       const score1 = this.getPayoff(move1, move2);
       const score2 = this.getPayoff(move2, move1);
-      
-      // Record this round for both strategies
-      strategy1.recordRound(move1, move2);
-      strategy2.recordRound(move2, move1);
       
       // Record this round in the game history
       const roundResult = {

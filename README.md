@@ -110,7 +110,7 @@ export class MyCustomStrategy extends Strategy {
     super('My Custom Strategy');
   }
   
-  makeDecision(roundNumber, totalRounds, opponentName, globalHistory) {
+  async makeDecision(roundNumber, totalRounds, opponentName, globalHistory) {
     // Your decision-making logic here, using the globalHistory parameter
     // Return true to cooperate, false to defect
   }
@@ -125,11 +125,6 @@ export class MyMetaStrategy extends Strategy {
     super('My Meta Strategy');
   }
   
-  async initialize() {
-    // Fetch the source code of all strategies
-    this.strategyCode = await LLMService.getStrategiesCode();
-  }
-  
   async analyzeOpponent(opponentName) {
     // Use LLM to analyze opponent's strategy
     const systemPrompt = "Analyze this strategy code";
@@ -137,7 +132,7 @@ export class MyMetaStrategy extends Strategy {
     return analysis;
   }
   
-  makeDecision(roundNumber, totalRounds, opponentName, globalHistory) {
+  async makeDecision(roundNumber, totalRounds, opponentName, globalHistory) {
     // Make decisions based on code analysis
     // Return true to cooperate, false to defect
   }

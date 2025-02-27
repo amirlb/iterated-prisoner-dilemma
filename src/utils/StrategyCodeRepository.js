@@ -4,38 +4,34 @@
  */
 class StrategyCodeRepository {
   constructor() {
-    // Map to store strategy code by strategy instance ID
+    // Map to store strategy code by strategy name
     this.codeMap = new Map();
-    
-    // Counter for generating unique IDs
-    this.idCounter = 0;
   }
   
   /**
-   * Register a new strategy and get a unique ID
-   * @returns {string} A unique ID for the strategy
+   * Register a strategy in the repository
+   * @param {string} name - The strategy name
+   * @returns {string} The strategy name
    */
-  registerStrategy() {
-    const id = `strategy_${this.idCounter++}`;
-    this.codeMap.set(id, null);
-    return id;
+  registerStrategy(name) {
+    if (!this.codeMap.has(name)) {
+      this.codeMap.set(name, null);
+    }
   }
   
   /**
    * Register a standard strategy by extracting its code
    * @param {Strategy} strategy - The strategy instance
-   * @returns {string} A unique ID for the strategy
+   * @returns {string} The strategy name
    */
   registerStandardStrategy(strategy) {
-    const id = `strategy_${this.idCounter++}`;
+    const name = strategy.name;
     
     // Extract code from the strategy's makeDecision method
     const code = this.extractStrategyCode(strategy);
     
     // Store the code
-    this.storeCode(id, code, strategy.name);
-    
-    return id;
+    this.storeCode(name, code);
   }
   
   /**
@@ -54,42 +50,36 @@ class StrategyCodeRepository {
       return match[1].trim();
     }
     
-    // Default code if we couldn't extract
-    return `
-      // Extracted code for ${strategy.name}
-      // NOTE: Code extraction failed, this is a placeholder
-      return true; // Default to cooperation
-    `;
+    throw new Error(`Failed to extract code from ${strategy.name}`);
   }
   
   /**
    * Store generated code for a strategy
-   * @param {string} id - The strategy ID
-   * @param {string} code - The generated code
    * @param {string} name - The strategy name
+   * @param {string} code - The generated code
    */
-  storeCode(id, code, name) {
-    this.codeMap.set(id, { code, name, timestamp: Date.now() });
+  storeCode(name, code) {
+    this.codeMap.set(name, { code, name });
   }
   
   /**
    * Get code for a specific strategy
-   * @param {string} id - The strategy ID
+   * @param {string} name - The strategy name
    * @returns {Object|null} The stored code object or null if not found
    */
-  getCode(id) {
-    return this.codeMap.get(id) || null;
+  getCode(name) {
+    return this.codeMap.get(name) || null;
   }
   
   /**
-   * Get all strategy code except for the specified ID
-   * @param {string} excludeId - The strategy ID to exclude
+   * Get all strategy code except for the specified name
+   * @param {string} excludeName - The strategy name to exclude
    * @returns {Array} Array of code objects
    */
-  getAllCodeExcept(excludeId) {
+  getAllCodeExcept(excludeName) {
     const result = [];
     this.codeMap.forEach((value, key) => {
-      if (key !== excludeId && value !== null) {
+      if (key !== excludeName && value !== null) {
         result.push({ id: key, ...value });
       }
     });

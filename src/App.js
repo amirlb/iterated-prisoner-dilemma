@@ -5,6 +5,7 @@ import TournamentResults from './components/TournamentResults.js';
 import GameEngine from './utils/GameEngine.js';
 import * as Strategies from './strategies/Strategy.js';
 import { MetaStrategy } from './strategies/MetaStrategy.js';
+import StrategyCodeRepository from './utils/StrategyCodeRepository.js';
 
 const App = () => {
   // Game settings
@@ -39,11 +40,11 @@ const App = () => {
   };
   
   // Run a single game simulation
-  const runGame = () => {
+  const runGame = async () => {
     const strategy1 = getStrategyByName(strategy1Name);
     const strategy2 = getStrategyByName(strategy2Name);
     
-    const results = gameEngine.runGame(strategy1, strategy2, rounds);
+    const results = await gameEngine.runGame(strategy1, strategy2, rounds);
     setGameResults(results);
     
     // Switch to game results tab
@@ -51,7 +52,7 @@ const App = () => {
   };
   
   // Run a tournament among all strategies
-  const runTournament = () => {
+  const runTournament = async () => {
     const strategies = [
       new Strategies.AlwaysCooperate(),
       new Strategies.AlwaysDefect(),
@@ -66,13 +67,14 @@ const App = () => {
       new MetaStrategy()
     ];
     
-    // Initialize any MetaStrategy instances with access to all strategies
-    const metaStrategies = strategies.filter(s => s instanceof MetaStrategy);
-    metaStrategies.forEach(strategy => {
-      strategy.initializeWithAllStrategies(strategies);
+    // Register all non-Meta strategies once in the repository
+    strategies.forEach(strategy => {
+      if (!(strategy instanceof MetaStrategy)) {
+        StrategyCodeRepository.registerStandardStrategy(strategy);
+      }
     });
     
-    const results = gameEngine.runTournament(strategies, rounds);
+    const results = await gameEngine.runTournament(strategies, rounds);
     setTournamentResults(results);
     
     // Switch to tournament results tab

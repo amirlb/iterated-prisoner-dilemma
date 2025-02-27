@@ -6,42 +6,17 @@ import { fileURLToPath } from 'url';
 import cors from 'cors';
 import { existsSync } from 'fs';
 import os from 'os';
+import tmp from 'tmp';
 
 // Get directory name in ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Keep track of all temp files created during this session
-const tempFiles = new Set();
+// Configure tmp to automatically remove files
+tmp.setGracefulCleanup();
 
 // Sleep function for implementing delays
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-// Handle cleanup of temp files on process exit
-process.on('exit', () => cleanupTempFiles());
-process.on('SIGINT', () => {
-  cleanupTempFiles();
-  process.exit(0);
-});
-process.on('SIGTERM', () => {
-  cleanupTempFiles();
-  process.exit(0);
-});
-
-// Function to clean up all temp files
-async function cleanupTempFiles() {
-  console.log(`Cleaning up ${tempFiles.size} temporary files...`);
-  for (const file of tempFiles) {
-    if (existsSync(file)) {
-      try {
-        fs.unlink(file);
-      } catch (error) {
-        console.error(`Failed to delete temp file ${file}:`, error);
-      }
-    }
-  }
-  tempFiles.clear();
-}
 
 const app = express();
 const PORT = 3001;
@@ -110,11 +85,7 @@ async function executeWithBackoff(command, options = {}) {
 
 // Endpoint to query the LLM
 app.post('/api/llm', async (req, res) => {
-  // Create a unique temp file in the system temp directory
-  const tempFile = path.join(os.tmpdir(), `llm_prompt_${Date.now()}_${Math.random().toString(36).substring(2, 10)}.txt`);
-  
-  // Add to tracked temp files
-  tempFiles.add(tempFile);
+  let tempFileObj = null;
   
   try {
     const { systemPrompt, userPrompt } = req.body;
@@ -124,12 +95,15 @@ app.post('/api/llm', async (req, res) => {
     }
     
     try {
+      // Create a temporary file that will be automatically cleaned up
+      tempFileObj = tmp.fileSync({ prefix: 'llm_prompt_', postfix: '.txt', keep: false });
+      
       // Make sure the user prompt is properly formatted for the llm CLI tool
-      await fs.writeFile(tempFile, userPrompt);
+      await fs.writeFile(tempFileObj.name, userPrompt);
       
       // Different format for the llm command that should work better with the CLI tool
       // Use --system instead of -s for better compatibility
-      const command = `cat ${tempFile} | llm --system "${systemPrompt.replace(/"/g, '\\"')}"`;
+      const command = `cat ${tempFileObj.name} | llm --system "${systemPrompt.replace(/"/g, '\\"')}"`;
       
       try {
         // Execute with backoff strategy
@@ -149,16 +123,6 @@ app.post('/api/llm', async (req, res) => {
           response: 'LLM_ERROR_USE_MOCK', 
           error: execError.message 
         });
-      } finally {
-        // Clean up the temporary file
-        if (existsSync(tempFile)) {
-          try {
-            await fs.unlink(tempFile);
-            tempFiles.delete(tempFile);
-          } catch (unlinkError) {
-            console.error('Error deleting temporary file:', unlinkError);
-          }
-        }
       }
     } catch (fileError) {
       console.error('File operation error:', fileError);
@@ -173,28 +137,6 @@ app.post('/api/llm', async (req, res) => {
       response: 'LLM_ERROR_USE_MOCK',
       error: `Internal server error: ${err.message}` 
     });
-  } finally {
-    // One more attempt to clean up the file if it still exists
-    if (existsSync(tempFile)) {
-      try {
-        await fs.unlink(tempFile);
-        tempFiles.delete(tempFile);
-      } catch (error) {
-        console.error(`Final cleanup attempt failed for ${tempFile}:`, error);
-      }
-    }
-  }
-});
-
-// Endpoint to get the source code of all strategies
-app.get('/api/strategies', async (req, res) => {
-  try {
-    const strategiesFile = path.join(__dirname, 'src', 'strategies', 'Strategy.js');
-    const strategiesCode = await fs.readFile(strategiesFile, 'utf8');
-    res.json({ code: strategiesCode });
-  } catch (err) {
-    console.error('Error reading strategies file:', err);
-    res.status(500).json({ error: 'Error reading strategies file' });
   }
 });
 
